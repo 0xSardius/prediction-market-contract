@@ -61,5 +61,32 @@ contract SimplePredictionMarket is Ownable, ReentrancyGuard {
     )
 
 
-    constructor() {}
+    constructor(address _bettingToken) {
+        bettingToken = IERC20(_bettingToken);
+        _setupOwner(msg.sender); 
+    }
+
+    function createMarket(
+        string memory _question,
+        string memory _optionA,
+        string memory _optionB,
+        uint256 _duration
+    ) external returns (uint256) {
+        require(msg.sender == owner(), "Only owner can create markets");
+        require(_duration > 0, "Duration must be greater than 0");
+        require(bytes(_optionA).length > 0 && bytes(_optionB).length > 0, "Options cannot be empty");
+
+        uint256 marketId = marketCount++;
+        Market storage market = markets[marketId];
+
+        market.question = _question;
+        market.optionA = _optionA;
+        market.optionB = _optionB;
+        market.endTime = block.timestamp + _duration;
+        market.outcome = MarketOutcome.UNRESOLVED;
+
+        emit MarketCreated(marketId, _question, _optionA, _optionB, market.endTime);
+        });
+    }
 }
+
