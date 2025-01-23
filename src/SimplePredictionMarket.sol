@@ -7,6 +7,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.
 
 contract SimplePredictionMarket is Ownable, ReentrancyGuard {
 
+
     enum MarketOutcome {
         UNRESOLVED,
         OPTION_A,
@@ -117,6 +118,41 @@ contract SimplePredictionMarket is Ownable, ReentrancyGuard {
         market.resolved = true;
 
         emit MarketResolved(_marketId, _outcome);
+    }
+
+    function claimWinnings(uint256 _marketId) external {
+        Market storage market = markets[_marketId];
+        require(market.resolved, "Market has not been resolved");
+        
+        uint256 userShares;
+        uint256 winningShares;
+        uint256 losingShares;
+
+        if (market.outcome == MarketOutcome.OPTION_A) {
+            userShares = market.optionASharesBalance[msg.sender];
+            winningShares = market.totalOptionAShares;
+            losingShares = market.totalOptionBShares;
+            market.optionASharesBalance[msg.sender] = 0;
+        } else if (market.outcome == MarketOutcome.OPTION_B) {
+            userShares = market.optionBSharesBalance[msg.sender];
+            winningShares = market.totalOptionBShares;
+            losingShares = market.totalOptionAShares;
+            market.optionBSharesBalance[msg.sender] = 0;
+        } else {
+            revert("Invalid market outcome");
+        }
+
+        require(userShares > 0, "No winnings to claim");
+
+        // Calculate the reward ratio
+        uint256 rewardRatio = (losingShares * 1e18) / winningShares;
+
+        // Calculate winnings
+        uint256 winnings = userShares + (userShares * rewardRatio) / 1e18;
+
+        require(bettingToken.transfer(msg.sender, winnings), "Transfer failed");
+
+        emit Claimed(_marketId, msg.sender, winnings);
     }
 }
 
